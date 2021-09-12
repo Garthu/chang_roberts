@@ -6,9 +6,11 @@ import errno
 from time import sleep
 
 from datetime import timedelta
+from multiprocessing import Semaphore, Barrier
 from concurrent.futures import ProcessPoolExecutor
 
 BASE_PORT = 6080
+
 
 def node(index, process_number):
     in_address = ('localhost', BASE_PORT + index)
@@ -16,7 +18,9 @@ def node(index, process_number):
 
     sock_in = socket.create_server(in_address, family=socket.AF_INET)
     sock_in.listen(1)
-    
+
+    barrier.wait()
+
     if (index % 2 == 0):
         sock_out = socket.create_connection(out_address)
         sock_in, addr = sock_in.accept()
@@ -26,9 +30,9 @@ def node(index, process_number):
 
     fcntl.fcntl(sock_in, fcntl.F_SETFL, os.O_NONBLOCK)
 
-    if (index != 0):
-        data = f'{index}'
-        sock_out.send(data.encode())
+    #if (index != 0):
+    data = f'{index}'
+    sock_out.send(data.encode())
     
     ntrials = 5
     while (ntrials):
@@ -51,9 +55,11 @@ def node(index, process_number):
     return index
 
 def main(argv):
+    global barrier
     start_time = time.monotonic()
     process_number = int(argv[1])
-
+    barrier = Barrier(process_number)
+    
     with ProcessPoolExecutor(max_workers = process_number) as executor:
         futures = []
         for i in range(process_number):
